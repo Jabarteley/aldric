@@ -20,9 +20,15 @@ Set these values in `.env`:
 - `OPENAI_MODEL`: default `gpt-4o-mini`
 - `CLIENT_URL`: frontend origin, default `http://localhost:5173`
 - `BINANCE_BASE_URL`: realtime Binance market-data base URL, default `https://data-api.binance.vision/api/v3`
+- `ECONOMIC_CALENDAR_PROVIDER`: economic calendar provider, default `fmp`
+- `FMP_API_KEY`: Financial Modeling Prep API key. This is the default cheaper/free calendar option.
+- `FINNHUB_API_KEY`: optional Finnhub API key if `ECONOMIC_CALENDAR_PROVIDER=finnhub`
+- `TRADING_ECONOMICS_CLIENT` and `TRADING_ECONOMICS_SECRET`: optional Trading Economics credentials if `ECONOMIC_CALENDAR_PROVIDER=tradingeconomics`
 - Firebase credentials using either:
   - `GOOGLE_APPLICATION_CREDENTIALS=./serviceAccountKey.json`
   - or inline `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
+
+If no configured economic calendar key is available, Aldric continues running and skips the news-risk filter with a warning on generated signals.
 
 ## Firebase
 

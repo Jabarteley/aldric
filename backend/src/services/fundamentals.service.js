@@ -1,5 +1,5 @@
-import axios from "axios";
 import { listFundamentalEvents, saveFundamentalEvent, saveFundamentalEvents } from "../models/FundamentalEvent.js";
+import { getEconomicEvents } from "./economicCalendar.service.js";
 
 function normalizeImpact(value) {
   const clean = String(value || "").toUpperCase();
@@ -9,62 +9,10 @@ function normalizeImpact(value) {
   return clean || "UNKNOWN";
 }
 
-function currenciesFromEvent(event) {
-  const currency = event.Currency || event.currency;
-  const country = String(event.Country || event.country || "").toUpperCase();
-  if (currency) return [String(currency).toUpperCase()];
-  if (country.includes("UNITED STATES") || country === "US") return ["USD"];
-  if (country.includes("EURO")) return ["EUR"];
-  if (country.includes("UNITED KINGDOM") || country === "UK") return ["GBP"];
-  if (country.includes("JAPAN")) return ["JPY"];
-  return ["GLOBAL"];
-}
-
-function normalizeTradingEconomicsEvent(event) {
-  const time = event.Date || event.date;
-  const title = event.Event || event.event || event.Category || "Economic Event";
-  return {
-    id: `tradingeconomics_${event.CalendarId || `${time}_${title}`}`.replace(/[^a-zA-Z0-9_-]/g, "_"),
-    source: "tradingeconomics",
-    title,
-    country: event.Country || event.country || "",
-    currencies: currenciesFromEvent(event),
-    impact: normalizeImpact(event.Importance || event.importance),
-    time: new Date(time).toISOString(),
-    actual: event.Actual ?? event.actual,
-    forecast: event.Forecast ?? event.forecast,
-    previous: event.Previous ?? event.previous,
-    raw: event
-  };
-}
-
-export async function fetchTradingEconomicsCalendar({ from, to } = {}) {
-  const client = process.env.TRADING_ECONOMICS_CLIENT;
-  const secret = process.env.TRADING_ECONOMICS_SECRET;
-  if (!client || !secret) {
-    const error = new Error("Trading Economics credentials are not configured.");
-    error.status = 400;
-    throw error;
-  }
-
-  const start = from || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const end = to || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const { data } = await axios.get(`https://api.tradingeconomics.com/calendar/country/all/${start}/${end}`, {
-    params: { c: `${client}:${secret}`, f: "json" },
-    timeout: 20000,
-    proxy: false
-  });
-
-  return Array.isArray(data) ? data.map(normalizeTradingEconomicsEvent) : [];
-}
-
-export async function syncFundamentalEvents({ provider = "tradingeconomics", from, to } = {}) {
-  if (provider !== "tradingeconomics") {
-    const error = new Error(`Unsupported fundamentals provider: ${provider}`);
-    error.status = 400;
-    throw error;
-  }
-  const events = await fetchTradingEconomicsCalendar({ from, to });
+export async function syncFundamentalEvents({ from, to } = {}) {
+  const result = await getEconomicEvents({ from, to });
+  if (!result.available) return [];
+  const events = result.events.map((event) => ({ ...event, impact: normalizeImpact(event.impact) }));
   return saveFundamentalEvents(events);
 }
 

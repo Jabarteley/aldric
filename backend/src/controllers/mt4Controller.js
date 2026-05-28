@@ -12,6 +12,7 @@ import {
   updateMt4Order
 } from "../models/Mt4.js";
 import { generateAiSignal } from "../services/aiAnalysis.service.js";
+import { checkHighImpactEventRisk } from "../services/economicCalendar.service.js";
 import { getExecutionSettings, saveExecutionSettings } from "../services/executionSettings.service.js";
 import { buildMt4TradePlan, executionMode } from "../services/mt4Risk.service.js";
 import { relevantEventsForSymbol } from "../models/FundamentalEvent.js";
@@ -32,6 +33,29 @@ function normalizeTimeframe(timeframe = "M15") {
 
 function normalizeAccountId(value) {
   return String(value || "default").trim();
+}
+
+function applyNewsRiskToSignal(signal, newsRisk) {
+  if (newsRisk?.hasHighImpactEvent) {
+    signal.decision = "NO_TRADE";
+    signal.shouldExecute = false;
+    signal.confidence = Math.min(Number(signal.confidence || 0), 74);
+    signal.marketCondition = "NO_TRADE";
+    signal.reason = `${newsRisk.reason} ${signal.reason || ""}`.trim();
+    signal.riskWarning = "High-impact economic event risk detected. Aldric will not generate a trade inside the news avoidance window.";
+    return signal;
+  }
+
+  if (newsRisk?.calendarStatus === "UNAVAILABLE") {
+    signal.confidence = Math.max(0, Number(signal.confidence || 0) - 5);
+    signal.riskWarning = `${signal.riskWarning || ""} Economic calendar unavailable. News-risk filter was skipped.`.trim();
+  }
+
+  if (Number(signal.confidence || 0) < 75) {
+    signal.decision = "NO_TRADE";
+    signal.shouldExecute = false;
+  }
+  return signal;
 }
 
 export async function postMarketData(req, res, next) {
@@ -137,6 +161,7 @@ export async function getMt4Signal(req, res, next) {
 
     const fundamentalEvents = await relevantEventsForSymbol(symbol);
     marketData.newsEvents = [...(marketData.newsEvents || []), ...fundamentalEvents];
+    const newsRisk = await checkHighImpactEventRisk({ symbol });
     const tradePlan = buildMt4TradePlan({ marketData, account });
     const fallback = {
       symbol,
@@ -158,6 +183,7 @@ export async function getMt4Signal(req, res, next) {
         candles: marketData.candles?.slice(-120)
       },
       technicalData: tradePlan.technicalData,
+      newsRisk,
       riskPlan: tradePlan.riskPlan,
       deterministicDecision: tradePlan.decisionHint,
       blocked: tradePlan.blocked,
@@ -174,6 +200,7 @@ export async function getMt4Signal(req, res, next) {
       signal.marketCondition = tradePlan.blockReason;
       signal.rewardToRiskRatio = 0;
     }
+    applyNewsRiskToSignal(signal, newsRisk);
 
     const settings = await getExecutionSettings();
     const mode = executionMode({ account, signal, settings });
@@ -184,6 +211,7 @@ export async function getMt4Signal(req, res, next) {
       source: "MT4",
       accountId,
       technicalData: tradePlan.technicalData,
+      newsRisk,
       riskPlan: tradePlan.riskPlan,
       executionMode: mode
     });
@@ -219,6 +247,7 @@ async function generateSignalFromMt4Data({ accountId, account, marketData }) {
   const timeframe = marketData.timeframe;
   const fundamentalEvents = await relevantEventsForSymbol(symbol);
   marketData.newsEvents = [...(marketData.newsEvents || []), ...fundamentalEvents];
+  const newsRisk = await checkHighImpactEventRisk({ symbol });
   const tradePlan = buildMt4TradePlan({ marketData, account });
   const fallback = {
     symbol,
@@ -240,6 +269,7 @@ async function generateSignalFromMt4Data({ accountId, account, marketData }) {
       candles: marketData.candles?.slice(-120)
     },
     technicalData: tradePlan.technicalData,
+    newsRisk,
     riskPlan: tradePlan.riskPlan,
     deterministicDecision: tradePlan.decisionHint,
     blocked: tradePlan.blocked,
@@ -256,6 +286,7 @@ async function generateSignalFromMt4Data({ accountId, account, marketData }) {
     signal.marketCondition = tradePlan.blockReason;
     signal.rewardToRiskRatio = 0;
   }
+  applyNewsRiskToSignal(signal, newsRisk);
 
   const settings = await getExecutionSettings();
   const mode = executionMode({ account, signal, settings });
@@ -266,6 +297,7 @@ async function generateSignalFromMt4Data({ accountId, account, marketData }) {
     source: "MT4",
     accountId,
     technicalData: tradePlan.technicalData,
+    newsRisk,
     riskPlan: tradePlan.riskPlan,
     executionMode: mode
   });

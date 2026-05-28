@@ -204,9 +204,14 @@ Aldric will avoid trades around high-impact events for matching symbols.
 To sync an economic-calendar provider, configure the backend:
 
 ```env
-TRADING_ECONOMICS_CLIENT=your_client
-TRADING_ECONOMICS_SECRET=your_secret
+ECONOMIC_CALENDAR_PROVIDER=fmp
+FMP_API_KEY=your_fmp_key
+FINNHUB_API_KEY=optional_finnhub_key
+TRADING_ECONOMICS_CLIENT=optional_client
+TRADING_ECONOMICS_SECRET=optional_secret
 ```
+
+FMP is the default cheaper/free provider. Trading Economics is optional. If no calendar key is configured, Aldric still runs, but it will show a warning that the news-risk filter was skipped.
 
 Then click:
 

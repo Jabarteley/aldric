@@ -25,7 +25,6 @@ export async function createFundamentalEvent(req, res, next) {
 export async function syncFundamentals(req, res, next) {
   try {
     const events = await syncFundamentalEvents({
-      provider: req.body?.provider || "tradingeconomics",
       from: req.body?.from,
       to: req.body?.to
     });

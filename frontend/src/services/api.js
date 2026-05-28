@@ -96,7 +96,7 @@ export async function addFundamentalEvent(payload) {
 }
 
 export async function syncFundamentalEvents() {
-  const { data } = await api.post("/fundamentals/sync", { provider: "tradingeconomics" });
+  const { data } = await api.post("/fundamentals/sync", {});
   return data;
 }
 

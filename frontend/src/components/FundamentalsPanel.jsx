@@ -57,7 +57,7 @@ export default function FundamentalsPanel() {
       setMessage(`Synced ${data.count} provider events.`);
       await loadEvents();
     } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to sync provider. Add Trading Economics credentials or use manual events.");
+      setMessage(error.response?.data?.message || "Unable to sync provider. Add an FMP, Finnhub, or Trading Economics key, or use manual events.");
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export default function FundamentalsPanel() {
               <p className="metric-label">Fundamentals & News</p>
               <h2 className="text-lg font-semibold text-white">Economic events used by Aldric&apos;s trade filter</h2>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
-                High-impact events matching a symbol&apos;s currency block trades 30 minutes before and after release. Provider sync requires API credentials; manual events work now.
+                High-impact events matching a symbol&apos;s currency block trades 30 minutes before and after release. FMP is the default provider; Finnhub and Trading Economics are optional.
               </p>
             </div>
           </div>

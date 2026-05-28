@@ -1,5 +1,5 @@
 import { AlertTriangle, Bot, CheckCircle2, Power, RefreshCcw, ShieldAlert } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchMt4State, scanMt4Signals, updateMt4ExecutionMode, updateMt4GlobalExecutionSettings } from "../services/api.js";
 import LoadingSpinner from "./LoadingSpinner.jsx";
 
@@ -84,6 +84,10 @@ export default function SettingsPanel() {
     }
   }
 
+  useEffect(() => {
+    loadState();
+  }, []);
+
   return (
     <section className="space-y-5">
       <div className="terminal-panel p-5">
@@ -134,7 +138,7 @@ export default function SettingsPanel() {
           <div className="mt-5 flex flex-wrap gap-3">
             <button
               onClick={() => saveGlobalSettings(false)}
-              disabled={loading || !state}
+              disabled={loading}
               className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60 ${!executionSettings?.globalAutoEnabled ? "bg-cyan-300 text-slate-950" : "border border-slate-700 bg-slate-900 text-slate-100"}`}
             >
               <CheckCircle2 size={16} />
@@ -142,7 +146,7 @@ export default function SettingsPanel() {
             </button>
             <button
               onClick={() => saveGlobalSettings(true)}
-              disabled={loading || !state}
+              disabled={loading}
               className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60 ${executionSettings?.globalAutoEnabled ? "bg-emerald-300 text-slate-950" : "border border-slate-700 bg-slate-900 text-slate-100"}`}
             >
               <Power size={16} />
@@ -150,7 +154,7 @@ export default function SettingsPanel() {
             </button>
             <button
               onClick={() => saveGlobalSettings(executionSettings?.globalAutoEnabled === true, !(executionSettings?.globalKillSwitch === true))}
-              disabled={loading || !state}
+              disabled={loading}
               className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60 ${executionSettings?.globalKillSwitch ? "bg-cyan-300 text-slate-950" : "border border-rose-400/30 bg-rose-400/10 text-rose-100"}`}
             >
               <ShieldAlert size={16} />

@@ -19,7 +19,17 @@ cp .env.example .env
 npm run dev
 ```
 
-Configure `.env` with Firebase credentials and `OPENAI_API_KEY`.
+Configure `.env` with Firebase credentials and `OPENAI_API_KEY`. For the economic calendar, FMP is the default cheaper/free provider:
+
+```env
+ECONOMIC_CALENDAR_PROVIDER=fmp
+FMP_API_KEY=
+FINNHUB_API_KEY=
+TRADING_ECONOMICS_CLIENT=
+TRADING_ECONOMICS_SECRET=
+```
+
+Trading Economics is optional, not required. Finnhub can be selected with `ECONOMIC_CALENDAR_PROVIDER=finnhub`. If no economic calendar API key is configured, Aldric still works but marks the calendar unavailable and skips the news-risk filter instead of pretending news was checked.
 
 ## Run Frontend
 
@@ -67,7 +77,7 @@ curl -X POST http://localhost:5000/api/analysis/generate -H "Content-Type: appli
 - Responsive dark trading dashboard
 - MT4 bridge endpoints for market data, account state, signals, orders, and trade result logging
 - MQL4 Expert Advisor bridge template in `mt4/AldricBridgeEA.mq4`
-- Fundamentals/news calendar storage, manual event entry, provider sync hook, and trade blocking around high-impact events
+- Fundamentals/news calendar storage, manual event entry, FMP/Finnhub/Trading Economics provider sync, and trade blocking around high-impact events
 
 ## Future MT4 Integration
 

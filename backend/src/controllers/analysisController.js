@@ -1,6 +1,7 @@
 import { createSignal } from "../models/Signal.js";
 import { generateAiSignal } from "../services/aiAnalysis.service.js";
 import { getBtcMarket } from "../services/binance.service.js";
+import { checkHighImpactEventRisk } from "../services/economicCalendar.service.js";
 import { calculateRiskPlan, inferDecisionHint } from "../services/riskManagement.service.js";
 import { analyzeCandles } from "../services/technicalAnalysis.service.js";
 import { validateSignal } from "../utils/validateSignal.js";
@@ -26,6 +27,7 @@ export async function generateAnalysis(req, res, next) {
     const input = normalizeBody(req.body);
     const market = await getBtcMarket(input.timeframe);
     const technicalData = analyzeCandles(market.candles);
+    const newsRisk = await checkHighImpactEventRisk({ symbol: input.symbol });
     const decisionHint = inferDecisionHint(technicalData);
     const riskPlan = calculateRiskPlan({
       technicalData,
@@ -38,6 +40,7 @@ export async function generateAnalysis(req, res, next) {
       timeframe: input.timeframe,
       currentPrice: technicalData.currentPrice,
       technicalData,
+      newsRisk,
       riskPlan,
       safetyRules: {
         maxRiskPerTradePercent: 2,
@@ -61,9 +64,27 @@ export async function generateAnalysis(req, res, next) {
       timeframe: input.timeframe
     });
 
+    if (newsRisk.hasHighImpactEvent) {
+      signal.decision = "NO_TRADE";
+      signal.shouldExecute = false;
+      signal.confidence = Math.min(Number(signal.confidence || 0), 74);
+      signal.reason = `${newsRisk.reason} ${signal.reason || ""}`.trim();
+      signal.riskWarning = "High-impact economic event risk detected. Aldric will not generate a trade inside the news avoidance window.";
+      signal.marketCondition = "NO_TRADE";
+    } else if (newsRisk.calendarStatus === "UNAVAILABLE") {
+      signal.confidence = Math.max(0, Number(signal.confidence || 0) - 5);
+      signal.riskWarning = `${signal.riskWarning || ""} Economic calendar unavailable. News-risk filter was skipped.`.trim();
+    }
+
+    if (Number(signal.confidence || 0) < 75) {
+      signal.decision = "NO_TRADE";
+      signal.shouldExecute = false;
+    }
+
     const savedSignal = await createSignal({
       ...signal,
       technicalData,
+      newsRisk,
       riskSettings: {
         accountBalance: riskPlan.accountBalance,
         riskPercentage: riskPlan.riskPercentage,
