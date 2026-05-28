@@ -2,7 +2,9 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import analysisRoutes from "./routes/analysisRoutes.js";
+import fundamentalsRoutes from "./routes/fundamentalsRoutes.js";
 import marketRoutes from "./routes/marketRoutes.js";
+import mt4Routes from "./routes/mt4Routes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import signalRoutes from "./routes/signalRoutes.js";
 
@@ -28,6 +30,8 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/market", marketRoutes);
 app.use("/api/analysis", analysisRoutes);
+app.use("/api/fundamentals", fundamentalsRoutes);
+app.use("/api/mt4", mt4Routes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/signals", signalRoutes);
 

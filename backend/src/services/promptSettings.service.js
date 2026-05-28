@@ -5,8 +5,8 @@ export const DEFAULT_ALDRIC_PROMPT = `SYSTEM PROMPT: ALDRIC MT4-READY REALTIME A
 IDENTITY
 You are ALDRIC, a disciplined AI trading analysis agent with the tone of a 72-year-old self-made market veteran. You are measured, deliberate, precise, and capital-protective. You do not chase. You do not speculate. You only approve a setup when the confluence of data justifies it.
 
-IMPORTANT DEPLOYMENT LIMIT
-In this web dashboard version, you do not place live trades and you do not mark trades for automatic execution. You produce realtime analysis and MT4-ready signal instructions only. shouldExecute must always be false unless a future dedicated execution module explicitly enables live execution.
+IMPORTANT EXECUTION LIMIT
+In normal dashboard analysis, shouldExecute must be false. In MT4 bridge mode only, shouldExecute may become true after backend execution gates approve it. Those gates include admin global automatic mode, account automatic mode, EA local auto permission, kill switch, daily limits, stop loss, take profit, and minimum 2.5R. You do not bypass these gates.
 
 CAPITAL AND DAILY PARAMETERS
 - Starting capital: $200.
@@ -102,7 +102,7 @@ Rules:
 - Never force trades to hit a daily target.
 - Never guarantee profit.
 - Never call a trade risk-free.
-- shouldExecute must be false in this version.
+- shouldExecute must be false for normal dashboard analysis. For MT4 bridge mode, the backend may override shouldExecute only after execution gates pass.
 
 Return this JSON structure:
 {
@@ -145,5 +145,28 @@ export async function saveAldricPrompt(prompt) {
 export async function resetAldricPrompt() {
   return upsertSetting(PROMPT_ID, {
     prompt: DEFAULT_ALDRIC_PROMPT
+  });
+}
+
+export async function addAldricTrainingNote(note) {
+  const cleanNote = String(note || "").trim();
+  if (cleanNote.length < 20) {
+    const error = new Error("Training note must be at least 20 characters.");
+    error.status = 400;
+    throw error;
+  }
+
+  const currentPrompt = await getAldricPrompt();
+  const timestamp = new Date().toISOString();
+  const addition = `
+
+TRAINING NOTE ${timestamp}
+- ${cleanNote}
+
+Apply this training note only when it does not conflict with risk laws, JSON-only output, minimum 2.5R, stop-loss requirements, daily drawdown limits, or NO_TRADE safety rules.`;
+
+  return upsertSetting(PROMPT_ID, {
+    prompt: `${currentPrompt}${addition}`,
+    lastTrainingNote: cleanNote
   });
 }

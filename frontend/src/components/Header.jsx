@@ -1,6 +1,32 @@
 import { Activity, Radio, ShieldCheck } from "lucide-react";
 
-export default function Header() {
+export default function Header({ compact = false }) {
+  if (compact) {
+    return (
+      <header className="border-b border-slate-800 p-4">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-lg border border-cyan-300/25 bg-cyan-300/10 text-cyan-200">
+            <Activity size={21} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-semibold text-white">Aldric</h1>
+            <p className="truncate text-xs text-slate-500">AI Trading Terminal</p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-2 py-2 text-xs text-emerald-100">
+            <Radio size={14} />
+            Realtime
+          </div>
+          <div className="inline-flex items-center justify-center gap-1 rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-2 py-2 text-xs text-cyan-100">
+            <ShieldCheck size={14} />
+            Gated
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="border-b border-white/10 bg-slate-950/75 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-4">

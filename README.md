@@ -65,7 +65,12 @@ curl -X POST http://localhost:5000/api/analysis/generate -H "Content-Type: appli
 - Backend validation that forces unsafe setups to `NO_TRADE`
 - Firestore signal history
 - Responsive dark trading dashboard
+- MT4 bridge endpoints for market data, account state, signals, orders, and trade result logging
+- MQL4 Expert Advisor bridge template in `mt4/AldricBridgeEA.mq4`
+- Fundamentals/news calendar storage, manual event entry, provider sync hook, and trade blocking around high-impact events
 
 ## Future MT4 Integration
 
-Phase 2 can add an MQL4 Expert Advisor, backend signal endpoint for MT4, demo account testing, order execution with stop loss and take profit, trade result logging, and live trading only after testing. MT4 execution is intentionally not included in this version.
+Phase 2 now includes a deployable MT4 bridge foundation. Full-auto execution is disabled by default and gated by admin dashboard settings, EA input settings, account state, kill switch, and risk validation. See `backend/docs/MT4_BRIDGE.md`.
+
+For a plain-English client installation guide, see `docs/CLIENT_MT4_SETUP_GUIDE.md`.

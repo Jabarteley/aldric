@@ -1,12 +1,13 @@
-import { Brain, RotateCcw, Save } from "lucide-react";
+import { Brain, Plus, RotateCcw, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import LoadingSpinner from "./LoadingSpinner.jsx";
-import { fetchPromptSettings, resetPromptSettings, savePromptSettings } from "../services/api.js";
+import { addPromptTrainingNote, fetchPromptSettings, resetPromptSettings, savePromptSettings } from "../services/api.js";
 
 export default function PromptTrainer() {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [trainingNote, setTrainingNote] = useState("");
   const [message, setMessage] = useState("");
 
   async function loadPrompt() {
@@ -45,6 +46,21 @@ export default function PromptTrainer() {
       setMessage("Prompt restored to Aldric default.");
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to reset prompt.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAddTrainingNote() {
+    setSaving(true);
+    setMessage("");
+    try {
+      const data = await addPromptTrainingNote(trainingNote);
+      setPrompt(data.prompt);
+      setTrainingNote("");
+      setMessage("Training note added to Aldric's active prompt.");
+    } catch (error) {
+      setMessage(error.response?.data?.message || "Unable to add training note.");
     } finally {
       setSaving(false);
     }
@@ -91,6 +107,27 @@ export default function PromptTrainer() {
       </div>
 
       <div className="mt-4">
+        <div className="mb-4 rounded-lg border border-violet-400/15 bg-violet-400/10 p-4">
+          <p className="metric-label text-violet-200">Add Training Note</p>
+          <p className="mt-1 text-xs leading-5 text-violet-100/80">
+            Add a short lesson, rule, or correction. Aldric will append it to the active prompt while preserving risk laws.
+          </p>
+          <textarea
+            value={trainingNote}
+            onChange={(event) => setTrainingNote(event.target.value)}
+            placeholder="Example: When XAUUSD spreads are above 35 points during NY open, reduce confidence and prefer NO_TRADE unless HTF trend and structure are exceptionally clear."
+            className="mt-3 min-h-28 w-full resize-y rounded-lg border border-violet-300/20 bg-slate-950/80 p-3 text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600 focus:border-violet-300 focus:ring-2 focus:ring-violet-300/15"
+          />
+          <button
+            onClick={handleAddTrainingNote}
+            disabled={loading || saving || !trainingNote.trim()}
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-violet-300/30 bg-violet-300/10 px-3 py-2 text-sm font-semibold text-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Plus size={16} />
+            Add Note
+          </button>
+        </div>
+
         {loading ? (
           <div className="grid min-h-48 place-items-center rounded-lg border border-slate-800 bg-slate-950/70 text-slate-300">
             <div className="flex items-center gap-3">

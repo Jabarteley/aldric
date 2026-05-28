@@ -38,6 +38,13 @@ Create a Firebase project, enable Firestore, then create a service account key f
 - `GET /api/signals`
 - `GET /api/signals/:id`
 - `DELETE /api/signals/:id`
+- `POST /api/mt4/market-data`
+- `POST /api/mt4/account`
+- `GET /api/mt4/signal`
+- `POST /api/mt4/trade-result`
+- `GET /api/fundamentals/events`
+- `POST /api/fundamentals/events`
+- `POST /api/fundamentals/sync`
 
 Example signal request:
 

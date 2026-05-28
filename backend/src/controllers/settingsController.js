@@ -1,4 +1,4 @@
-import { DEFAULT_ALDRIC_PROMPT, getAldricPrompt, resetAldricPrompt, saveAldricPrompt } from "../services/promptSettings.service.js";
+import { DEFAULT_ALDRIC_PROMPT, addAldricTrainingNote, getAldricPrompt, resetAldricPrompt, saveAldricPrompt } from "../services/promptSettings.service.js";
 
 export async function getPrompt(req, res, next) {
   try {
@@ -21,6 +21,15 @@ export async function updatePrompt(req, res, next) {
 export async function restorePrompt(req, res, next) {
   try {
     const setting = await resetAldricPrompt();
+    res.json(setting);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function addTrainingNote(req, res, next) {
+  try {
+    const setting = await addAldricTrainingNote(req.body?.note);
     res.json(setting);
   } catch (error) {
     next(error);
