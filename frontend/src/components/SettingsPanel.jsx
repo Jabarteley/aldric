@@ -2,6 +2,7 @@ import { AlertTriangle, Bot, CheckCircle2, Power, RefreshCcw, ShieldAlert } from
 import { useEffect, useState } from "react";
 import { fetchMt4State, scanMt4Signals, updateMt4ExecutionMode, updateMt4GlobalExecutionSettings } from "../services/api.js";
 import LoadingSpinner from "./LoadingSpinner.jsx";
+import Mt4ScanMonitor from "./Mt4ScanMonitor.jsx";
 import Mt4TradeDetails from "./Mt4TradeDetails.jsx";
 
 const timeframes = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"];
@@ -236,6 +237,8 @@ export default function SettingsPanel() {
           </div>
         </div>
       </div>
+
+      <Mt4ScanMonitor state={state} />
 
       {scanResult?.signal && (
         <div className="terminal-panel p-5">

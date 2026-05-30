@@ -6,8 +6,10 @@ import {
   getMt4Order,
   listMt4MarketData,
   listMt4Orders,
+  listMt4Scans,
   saveMt4Account,
   saveMt4MarketData,
+  saveMt4Scan,
   saveMt4TradeResult,
   updateMt4Order
 } from "../models/Mt4.js";
@@ -101,6 +103,23 @@ function applyMt4RiskApprovedFallback(signal, fallback, tradePlan) {
     reason: `${fallback.reason} AI commentary was not executable, so Aldric used the deterministic MT4 risk plan for the trade candidate.`,
     shouldExecute: false
   };
+}
+
+function scanSummaryFromRanked(ranked) {
+  return ranked.map((item) => ({
+    symbol: item.marketData.symbol,
+    timeframe: item.marketData.timeframe,
+    blocked: item.plan.blocked,
+    decisionHint: item.plan.decisionHint,
+    confluenceCount: item.plan.riskPlan?.confluenceCount || 0,
+    entryPrice: item.plan.riskPlan?.entryPrice || item.marketData.ask || item.marketData.bid || 0,
+    stopLoss: item.plan.riskPlan?.stopLoss || 0,
+    takeProfit: item.plan.riskPlan?.takeProfit || 0,
+    rewardToRiskRatio: item.plan.riskPlan?.rewardToRiskRatio || 0,
+    lotSize: item.plan.riskPlan?.lotSize || 0,
+    session: item.plan.riskPlan?.session,
+    reason: item.plan.blockReason || item.plan.technicalData?.marketCondition
+  }));
 }
 
 export async function postMarketData(req, res, next) {
@@ -353,9 +372,9 @@ async function generateSignalFromMt4Data({ accountId, account, marketData }) {
 }
 
 export async function scanMt4Signals(req, res, next) {
+  const accountId = normalizeAccountId(req.body?.accountId || req.query.accountId);
+  const timeframe = normalizeTimeframe(req.body?.timeframe || req.query.timeframe);
   try {
-    const accountId = normalizeAccountId(req.body?.accountId || req.query.accountId);
-    const timeframe = normalizeTimeframe(req.body?.timeframe || req.query.timeframe);
     const account = await getMt4Account(accountId);
     if (!account) throw badRequest("No MT4 account state found. POST /api/mt4/account first.");
 
@@ -376,23 +395,42 @@ export async function scanMt4Signals(req, res, next) {
 
     const best = ranked.find((item) => !item.plan.blocked) || ranked[0];
     const result = await generateSignalFromMt4Data({ accountId, account, marketData: best.marketData });
+    const scanSummary = scanSummaryFromRanked(ranked);
+    const scanRecord = await saveMt4Scan({
+      accountId,
+      timeframe,
+      status: "COMPLETED",
+      scanned: feeds.length,
+      selectedSymbol: best.marketData.symbol,
+      selectedTimeframe: best.marketData.timeframe,
+      decision: result.signal?.decision,
+      shouldExecute: result.signal?.shouldExecute === true,
+      orderId: result.order?.id,
+      signalId: result.signal?.id,
+      executionMode: result.executionMode,
+      reason: result.signal?.reason,
+      scanSummary
+    });
 
     res.json({
       ok: true,
+      scan: scanRecord,
       scanned: feeds.length,
       selectedSymbol: best.marketData.symbol,
       selectedTimeframe: best.marketData.timeframe,
       signal: result.signal,
       order: result.order,
       executionMode: result.executionMode,
-      scanSummary: ranked.map((item) => ({
-        symbol: item.marketData.symbol,
-        blocked: item.plan.blocked,
-        confluenceCount: item.plan.riskPlan?.confluenceCount || 0,
-        reason: item.plan.blockReason || item.plan.technicalData?.marketCondition
-      }))
+      scanSummary
     });
   } catch (error) {
+    await saveMt4Scan({
+      accountId,
+      timeframe,
+      status: "ERROR",
+      error: error.message,
+      scanned: 0
+    }).catch(() => {});
     next(error);
   }
 }
@@ -400,13 +438,14 @@ export async function scanMt4Signals(req, res, next) {
 export async function listMt4State(req, res, next) {
   try {
     const accountId = normalizeAccountId(req.query.accountId);
-    const [account, marketData, orders, executionSettings] = await Promise.all([
+    const [account, marketData, orders, scans, executionSettings] = await Promise.all([
       getMt4Account(accountId),
       listMt4MarketData(accountId),
       listMt4Orders(accountId),
+      listMt4Scans(accountId),
       getExecutionSettings()
     ]);
-    res.json({ account, marketData, orders, executionSettings });
+    res.json({ account, marketData, orders, scans, executionSettings });
   } catch (error) {
     next(error);
   }

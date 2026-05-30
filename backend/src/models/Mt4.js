@@ -4,7 +4,8 @@ const collections = {
   marketData: "mt4MarketData",
   accounts: "mt4Accounts",
   orders: "mt4Orders",
-  tradeResults: "mt4TradeResults"
+  tradeResults: "mt4TradeResults",
+  scans: "mt4Scans"
 };
 
 function cleanSymbol(symbol = "") {
@@ -115,6 +116,28 @@ export async function listMt4Orders(accountId, limit = 50) {
   const db = getDb();
   const snapshot = await db
     .collection(collections.orders)
+    .where("accountId", "==", accountId)
+    .limit(limit)
+    .get();
+  return snapshot.docs
+    .map(serializeDoc)
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
+export async function saveMt4Scan(payload) {
+  const db = getDb();
+  const data = stripUndefined({
+    ...payload,
+    createdAt: new Date().toISOString()
+  });
+  const ref = await db.collection(collections.scans).add(data);
+  return { id: ref.id, ...data };
+}
+
+export async function listMt4Scans(accountId, limit = 20) {
+  const db = getDb();
+  const snapshot = await db
+    .collection(collections.scans)
     .where("accountId", "==", accountId)
     .limit(limit)
     .get();

@@ -2,6 +2,7 @@ import { Cable, CheckCircle2, Power, RefreshCcw, Shield, Wand2 } from "lucide-re
 import { useEffect, useState } from "react";
 import { confirmMt4Order, fetchMt4State, generateMt4Signal, updateMt4ExecutionMode } from "../services/api.js";
 import LoadingSpinner from "./LoadingSpinner.jsx";
+import Mt4ScanMonitor from "./Mt4ScanMonitor.jsx";
 import Mt4TradeDetails from "./Mt4TradeDetails.jsx";
 
 const symbols = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "GBPJPY", "BTCUSD", "BTCUSDT"];
@@ -239,6 +240,10 @@ export default function Mt4BridgePanel() {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="mt-5">
+        <Mt4ScanMonitor state={state} />
       </div>
 
       {signalResult?.signal && (
