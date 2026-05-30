@@ -2,6 +2,7 @@ import { Cable, CheckCircle2, Power, RefreshCcw, Shield, Wand2 } from "lucide-re
 import { useState } from "react";
 import { confirmMt4Order, fetchMt4State, generateMt4Signal, updateMt4ExecutionMode } from "../services/api.js";
 import LoadingSpinner from "./LoadingSpinner.jsx";
+import Mt4TradeDetails from "./Mt4TradeDetails.jsx";
 
 const symbols = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "GBPJPY", "BTCUSD", "BTCUSDT"];
 const timeframes = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"];
@@ -228,19 +229,7 @@ export default function Mt4BridgePanel() {
 
       {signalResult?.signal && (
         <div className="mt-5 rounded-lg border border-slate-800 bg-slate-950/70 p-4">
-          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-            <div>
-              <p className="metric-label">Latest MT4 Signal</p>
-              <p className="mt-1 text-lg font-semibold text-white">
-                {signalResult.signal.symbol} / {signalResult.signal.decision} / {signalResult.signal.confidence}%
-              </p>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-300">
-              <Shield size={15} />
-              shouldExecute: {String(signalResult.signal.shouldExecute)}
-            </div>
-          </div>
-          <p className="mt-3 text-sm leading-6 text-slate-300">{signalResult.signal.reason}</p>
+          <Mt4TradeDetails result={signalResult} />
         </div>
       )}
 
