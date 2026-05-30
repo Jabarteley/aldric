@@ -10,7 +10,7 @@ import RiskSettings from "../components/RiskSettings.jsx";
 import SettingsPanel from "../components/SettingsPanel.jsx";
 import SignalCard from "../components/SignalCard.jsx";
 import SignalHistory from "../components/SignalHistory.jsx";
-import { fetchMarket, fetchSignals, generateSignal } from "../services/api.js";
+import { fetchMarket, fetchMt4State, fetchSignals, generateSignal } from "../services/api.js";
 
 const defaultRiskSettings = {
   accountBalance: 200,
@@ -85,6 +85,7 @@ export default function Dashboard({ onLogout }) {
   const [loadingSignals, setLoadingSignals] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [marketError, setMarketError] = useState("");
+  const [mt4State, setMt4State] = useState(null);
   const [message, setMessage] = useState("");
   const latestSignal = useMemo(() => signals[0] || null, [signals]);
 
@@ -102,21 +103,29 @@ export default function Dashboard({ onLogout }) {
     }
   }
 
-  async function loadSignalHistory() {
-    setLoadingSignals(true);
+  async function loadSignalHistory({ silent = false } = {}) {
+    if (!silent) setLoadingSignals(true);
     try {
       const signalData = await fetchSignals();
       setSignals(signalData);
     } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to load signal history.");
+      if (!silent) setMessage(error.response?.data?.message || "Unable to load signal history.");
     } finally {
-      setLoadingSignals(false);
+      if (!silent) setLoadingSignals(false);
+    }
+  }
+
+  async function loadMt4State({ silent = false } = {}) {
+    try {
+      setMt4State(await fetchMt4State("default"));
+    } catch (error) {
+      if (!silent) setMt4State(null);
     }
   }
 
   async function loadDashboard() {
     setMessage("");
-    await Promise.all([loadMarket(), loadSignalHistory()]);
+    await Promise.all([loadMarket(), loadSignalHistory(), loadMt4State()]);
   }
 
   async function handleGenerateSignal() {
@@ -138,8 +147,33 @@ export default function Dashboard({ onLogout }) {
     loadDashboard();
   }, [timeframe]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      loadSignalHistory({ silent: true });
+      loadMt4State({ silent: true });
+    }, 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const marketCondition = market?.technicalData?.marketCondition || (marketError ? "FEED_OFFLINE" : "LOADING");
   const activeTitle = navigation.find((item) => item.id === activeSection)?.label || "Overview";
+  const mt4Account = mt4State?.account;
+  const mt4ExecutionSettings = mt4State?.executionSettings;
+  const mt4GlobalAuto = mt4ExecutionSettings?.globalAutoEnabled === true;
+  const mt4AccountAuto = mt4Account?.fullAutoEnabled === true;
+  const mt4EaAuto = mt4Account?.eaAutoEnabled === true;
+  const mt4KillSwitch = mt4ExecutionSettings?.globalKillSwitch === true || mt4Account?.killSwitch === true;
+  const mt4AutoReady = mt4GlobalAuto && mt4AccountAuto && mt4EaAuto && !mt4KillSwitch;
+  const executionModeLabel = !mt4Account
+    ? "MT4 not loaded"
+    : mt4AutoReady
+      ? "Automatic active"
+      : mt4GlobalAuto && mt4AccountAuto
+        ? "Auto gated"
+        : mt4GlobalAuto
+          ? "Global automatic"
+          : "Manual / gated";
+  const executionModeTone = mt4AutoReady ? "emerald" : mt4GlobalAuto ? "yellow" : "slate";
 
   function renderMarketPanel() {
     if (loadingMarket) {
@@ -165,7 +199,7 @@ export default function Dashboard({ onLogout }) {
             <StatusCard title="Market Condition" value={marketCondition} tone={marketError ? "rose" : "cyan"} />
             <StatusCard title="Latest Decision" value={latestSignal?.decision || "NO SIGNAL"} tone={latestSignal?.decision === "BUY" ? "emerald" : latestSignal?.decision === "SELL" ? "rose" : "yellow"} />
             <StatusCard title="Risk Per Trade" value={`${riskSettings.riskPercentage}% max 2% enforced`} tone="emerald" />
-            <StatusCard title="Execution Mode" value="Manual / gated" tone="slate" />
+            <StatusCard title="Execution Mode" value={executionModeLabel} tone={executionModeTone} />
           </section>
           {renderMarketPanel()}
           <SignalCard signal={latestSignal} />
