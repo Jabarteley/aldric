@@ -26,15 +26,17 @@ export default function Mt4BridgePanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  async function loadState() {
-    setLoading(true);
-    setMessage("");
+  async function loadState({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+      setMessage("");
+    }
     try {
       setState(await fetchMt4State(accountId));
     } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to load MT4 bridge state.");
+      if (!silent) setMessage(error.response?.data?.message || "Unable to load MT4 bridge state.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -114,7 +116,11 @@ export default function Mt4BridgePanel() {
 
   useEffect(() => {
     loadState();
-  }, []);
+    const timer = window.setInterval(() => {
+      loadState({ silent: true });
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [accountId]);
 
   return (
     <section className="terminal-panel p-5">

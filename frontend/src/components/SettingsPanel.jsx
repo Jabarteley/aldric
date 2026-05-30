@@ -28,15 +28,17 @@ export default function SettingsPanel() {
   const account = state?.account;
   const executionSettings = state?.executionSettings;
 
-  async function loadState() {
-    setLoading(true);
-    setMessage("");
+  async function loadState({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+      setMessage("");
+    }
     try {
       setState(await fetchMt4State(accountId));
     } catch (error) {
-      setMessage(error.response?.data?.message || "Unable to load account settings.");
+      if (!silent) setMessage(error.response?.data?.message || "Unable to load account settings.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -88,7 +90,11 @@ export default function SettingsPanel() {
 
   useEffect(() => {
     loadState();
-  }, []);
+    const timer = window.setInterval(() => {
+      loadState({ silent: true });
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [accountId]);
 
   return (
     <section className="space-y-5">
