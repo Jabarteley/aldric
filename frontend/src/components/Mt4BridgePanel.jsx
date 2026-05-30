@@ -1,5 +1,5 @@
 import { Cable, CheckCircle2, Power, RefreshCcw, Shield, Wand2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { confirmMt4Order, fetchMt4State, generateMt4Signal, updateMt4ExecutionMode } from "../services/api.js";
 import LoadingSpinner from "./LoadingSpinner.jsx";
 import Mt4TradeDetails from "./Mt4TradeDetails.jsx";
@@ -8,6 +8,7 @@ const symbols = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "GBPJPY", "BTCUSD", "BT
 const timeframes = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"];
 
 function money(value) {
+  if (value === undefined || value === null) return "N/A";
   return Number(value || 0).toLocaleString(undefined, {
     style: "currency",
     currency: "USD",
@@ -103,6 +104,16 @@ export default function Mt4BridgePanel() {
   const account = state?.account;
   const marketCount = state?.marketData?.length || 0;
   const orders = state?.orders || [];
+  const executionSettings = state?.executionSettings;
+  const executionLabel = account
+    ? account.fullAutoEnabled
+      ? "Automatic requested"
+      : "Manual / gated"
+    : "No account loaded";
+
+  useEffect(() => {
+    loadState();
+  }, []);
 
   return (
     <section className="terminal-panel p-5">
@@ -173,7 +184,8 @@ export default function Mt4BridgePanel() {
         </div>
         <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
           <p className="metric-label">Execution</p>
-          <p className="mt-1 text-sm font-semibold text-yellow-100">{account?.fullAutoEnabled ? "Automatic requested" : "Manual / gated"}</p>
+          <p className="mt-1 text-sm font-semibold text-yellow-100">{executionLabel}</p>
+          <p className="mt-1 text-xs text-slate-500">Global: {executionSettings?.globalAutoEnabled ? "Automatic" : "Manual"}</p>
         </div>
       </div>
 
@@ -182,7 +194,9 @@ export default function Mt4BridgePanel() {
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <p className="metric-label">Execution Mode</p>
-              <h3 className="text-base font-semibold text-white">{account?.fullAutoEnabled ? "Automatic requested" : "Manual confirmation"}</h3>
+              <h3 className="text-base font-semibold text-white">
+                {account ? (account.fullAutoEnabled ? "Automatic requested" : "Manual confirmation") : "No MT4 account loaded"}
+              </h3>
               <p className="mt-1 text-xs leading-5 text-slate-500">
                 Automatic execution still requires admin global automatic mode, EA auto enabled, no kill switch, and a valid risk-approved signal.
               </p>
