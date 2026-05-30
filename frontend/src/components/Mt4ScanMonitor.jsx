@@ -16,6 +16,12 @@ function age(value) {
   return `${Math.floor(minutes / 60)}h ago`;
 }
 
+function isStale(value) {
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return true;
+  return Date.now() - time > 15 * 60 * 1000;
+}
+
 function numberValue(value, digits = 2) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return "0";
@@ -41,11 +47,13 @@ export default function Mt4ScanMonitor({ state }) {
   const executionSettings = state?.executionSettings || {};
   const lastScan = scans[0];
   const latestFeed = feeds[0];
+  const accountStale = isStale(account?.updatedAt);
+  const feedStale = isStale(latestFeed?.updatedAt);
   const globalAuto = executionSettings.globalAutoEnabled === true;
   const accountAuto = account?.fullAutoEnabled === true;
   const eaAuto = account?.eaAutoEnabled === true;
   const killSwitchOff = executionSettings.globalKillSwitch !== true && account?.killSwitch !== true;
-  const ready = globalAuto && accountAuto && eaAuto && killSwitchOff;
+  const ready = globalAuto && accountAuto && eaAuto && killSwitchOff && !accountStale && !feedStale;
 
   return (
     <div className="space-y-4 rounded-lg border border-slate-800 bg-slate-950/70 p-4">
@@ -53,7 +61,7 @@ export default function Mt4ScanMonitor({ state }) {
         <div>
           <p className="metric-label">MT4 Full Scan Monitor</p>
           <h3 className="mt-1 text-lg font-semibold text-white">
-            {ready ? "Automatic execution gates are open" : "Automatic execution is gated"}
+            {ready ? "Automatic execution gates are open" : accountStale || feedStale ? "MT4 data is stale" : "Automatic execution is gated"}
           </h3>
           <p className="mt-1 text-sm leading-6 text-slate-400">
             Last scan: {lastScan ? `${age(lastScan.createdAt)} / ${lastScan.status}` : "No scan recorded yet"}.
@@ -69,7 +77,7 @@ export default function Mt4ScanMonitor({ state }) {
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         <Gate label="Global automatic" enabled={globalAuto} />
         <Gate label="Account automatic" enabled={accountAuto} />
-        <Gate label="EA local automatic" enabled={eaAuto} />
+        <Gate label="EA local automatic" enabled={eaAuto && !accountStale} />
         <Gate label="Kill switches off" enabled={killSwitchOff} />
       </div>
 
@@ -79,8 +87,8 @@ export default function Mt4ScanMonitor({ state }) {
             <Activity size={16} />
             Heartbeat
           </div>
-          <p className="mt-2 text-sm text-slate-300">Account: {age(account?.updatedAt)}</p>
-          <p className="mt-1 text-sm text-slate-300">Feed: {age(latestFeed?.updatedAt)}</p>
+          <p className={`mt-2 text-sm ${accountStale ? "text-yellow-100" : "text-slate-300"}`}>Account: {age(account?.updatedAt)}{accountStale ? " / STALE" : ""}</p>
+          <p className={`mt-1 text-sm ${feedStale ? "text-yellow-100" : "text-slate-300"}`}>Feed: {age(latestFeed?.updatedAt)}{feedStale ? " / STALE" : ""}</p>
         </div>
         <div className="rounded-lg border border-slate-800 bg-slate-900/55 p-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-white">

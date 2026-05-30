@@ -21,6 +21,8 @@ import { relevantEventsForSymbol } from "../models/FundamentalEvent.js";
 import { validateSignal } from "../utils/validateSignal.js";
 
 const ALLOWED_TIMEFRAMES = new Set(["M1", "M5", "M15", "M30", "H1", "H4", "D1"]);
+const MAX_MT4_ACCOUNT_AGE_MS = 15 * 60 * 1000;
+const MAX_MT4_FEED_AGE_MS = 15 * 60 * 1000;
 
 function badRequest(message) {
   const error = new Error(message);
@@ -35,6 +37,23 @@ function normalizeTimeframe(timeframe = "M15") {
 
 function normalizeAccountId(value) {
   return String(value || "default").trim();
+}
+
+function ageMs(timestamp) {
+  const time = new Date(timestamp || 0).getTime();
+  if (!Number.isFinite(time)) return Infinity;
+  return Date.now() - time;
+}
+
+function requireFreshMt4Account(account) {
+  if (!account) throw badRequest("No MT4 account state found. POST /api/mt4/account first.");
+  if (ageMs(account.updatedAt) > MAX_MT4_ACCOUNT_AGE_MS) {
+    throw badRequest("MT4 account heartbeat is stale. Keep MT4 open, attach the EA, enable WebRequest, and wait for the next account update.");
+  }
+}
+
+function isFreshMt4Feed(marketData) {
+  return ageMs(marketData?.updatedAt) <= MAX_MT4_FEED_AGE_MS;
 }
 
 function applyNewsRiskToSignal(signal, newsRisk) {
@@ -220,8 +239,11 @@ export async function getMt4Signal(req, res, next) {
       getMt4MarketData(accountId, symbol, timeframe)
     ]);
 
-    if (!account) throw badRequest("No MT4 account state found. POST /api/mt4/account first.");
+    requireFreshMt4Account(account);
     if (!marketData) throw badRequest("No MT4 market data found. POST /api/mt4/market-data first.");
+    if (!isFreshMt4Feed(marketData)) {
+      throw badRequest("MT4 market feed is stale. Aldric will not generate a trade from old broker prices.");
+    }
 
     const fundamentalEvents = await relevantEventsForSymbol(symbol);
     marketData.newsEvents = [...(marketData.newsEvents || []), ...fundamentalEvents];
@@ -376,10 +398,12 @@ export async function scanMt4Signals(req, res, next) {
   const timeframe = normalizeTimeframe(req.body?.timeframe || req.query.timeframe);
   try {
     const account = await getMt4Account(accountId);
-    if (!account) throw badRequest("No MT4 account state found. POST /api/mt4/account first.");
+    requireFreshMt4Account(account);
 
-    const feeds = (await listMt4MarketData(accountId, 100)).filter((item) => item.timeframe === timeframe);
-    if (!feeds.length) throw badRequest("No MT4 market feeds found for this timeframe.");
+    const allFeeds = (await listMt4MarketData(accountId, 100)).filter((item) => item.timeframe === timeframe);
+    const feeds = allFeeds.filter(isFreshMt4Feed);
+    if (!allFeeds.length) throw badRequest("No MT4 market feeds found for this timeframe.");
+    if (!feeds.length) throw badRequest("No fresh MT4 market feeds found for this timeframe. Aldric will not scan stale broker data.");
 
     const ranked = [];
     for (const marketData of feeds) {
