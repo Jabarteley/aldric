@@ -1,3 +1,7 @@
+function round(value, decimals = 6) {
+  return Number(value.toFixed(decimals));
+}
+
 export function calculateEMA(values, period) {
   if (!values.length) return null;
   const k = 2 / (period + 1);
@@ -7,7 +11,7 @@ export function calculateEMA(values, period) {
     ema = values[i] * k + ema * (1 - k);
   }
 
-  return Number(ema.toFixed(2));
+  return round(ema);
 }
 
 export function calculateRSI(values, period = 14) {
@@ -35,7 +39,7 @@ export function calculateRSI(values, period = 14) {
 
   if (avgLoss === 0) return 100;
   const rs = avgGain / avgLoss;
-  return Number((100 - 100 / (1 + rs)).toFixed(2));
+  return round(100 - 100 / (1 + rs), 2);
 }
 
 export function calculateMACD(values, fast = 12, slow = 26, signalPeriod = 9) {
@@ -52,9 +56,9 @@ export function calculateMACD(values, fast = 12, slow = 26, signalPeriod = 9) {
   const macd = macdSeries[macdSeries.length - 1];
   const signal = calculateEMA(macdSeries, signalPeriod);
   return {
-    macd: Number(macd.toFixed(2)),
+    macd: round(macd),
     signal,
-    histogram: Number((macd - signal).toFixed(2))
+    histogram: round(macd - signal)
   };
 }
 
@@ -71,7 +75,7 @@ export function calculateATR(candles, period = 14) {
 
   const recent = trueRanges.slice(-period);
   const atr = recent.reduce((sum, value) => sum + value, 0) / recent.length;
-  return Number(atr.toFixed(2));
+  return round(atr);
 }
 
 export function supportResistance(candles, lookback = 40) {
@@ -79,7 +83,7 @@ export function supportResistance(candles, lookback = 40) {
   const support = Math.min(...recent.map((candle) => candle.low));
   const resistance = Math.max(...recent.map((candle) => candle.high));
   return {
-    support: Number(support.toFixed(2)),
-    resistance: Number(resistance.toFixed(2))
+    support: round(support),
+    resistance: round(resistance)
   };
 }

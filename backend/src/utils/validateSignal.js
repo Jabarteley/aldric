@@ -6,10 +6,14 @@ function numberOrZero(value) {
 }
 
 export function validateSignal(aiSignal, fallback) {
+  const fallbackDecision = VALID_DECISIONS.has(fallback?.decision) ? fallback.decision : "NO_TRADE";
+  const aiDecision = VALID_DECISIONS.has(aiSignal?.decision) ? aiSignal.decision : fallbackDecision;
+  const confidence = numberOrZero(aiSignal?.confidence || fallback?.confidence);
+
   const signal = {
     symbol: aiSignal?.symbol || fallback.symbol,
-    decision: VALID_DECISIONS.has(aiSignal?.decision) ? aiSignal.decision : "NO_TRADE",
-    confidence: Math.max(0, Math.min(100, numberOrZero(aiSignal?.confidence))),
+    decision: aiDecision,
+    confidence: Math.max(0, Math.min(100, confidence)),
     entryPrice: numberOrZero(aiSignal?.entryPrice || fallback.entryPrice),
     stopLoss: numberOrZero(aiSignal?.stopLoss || fallback.stopLoss),
     takeProfit: numberOrZero(aiSignal?.takeProfit || fallback.takeProfit),

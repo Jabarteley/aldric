@@ -58,6 +58,51 @@ function applyNewsRiskToSignal(signal, newsRisk) {
   return signal;
 }
 
+function buildMt4FallbackSignal({ symbol, timeframe, tradePlan, marketData }) {
+  const confidence = Math.min(92, 75 + Number(tradePlan.riskPlan?.confluenceCount || 0) * 4);
+  const direction = tradePlan.blocked ? "NO_TRADE" : tradePlan.decisionHint;
+  const entryPrice = tradePlan.riskPlan?.entryPrice || Number(marketData.ask || marketData.bid || 0);
+
+  return {
+    symbol,
+    decision: direction,
+    confidence,
+    entryPrice,
+    stopLoss: tradePlan.riskPlan?.stopLoss || 0,
+    takeProfit: tradePlan.riskPlan?.takeProfit || 0,
+    riskAmount: tradePlan.riskPlan?.riskAmount || 0,
+    rewardToRiskRatio: tradePlan.riskPlan?.rewardToRiskRatio || 0,
+    marketCondition: tradePlan.blocked ? tradePlan.blockReason : tradePlan.technicalData?.marketCondition,
+    reason: tradePlan.blocked
+      ? tradePlan.blockReason
+      : `MT4 risk-approved ${direction} setup: entry ${entryPrice}, SL ${tradePlan.riskPlan?.stopLoss}, TP ${tradePlan.riskPlan?.takeProfit}, ${tradePlan.riskPlan?.riskPercentage}% risk, ${tradePlan.riskPlan?.rewardToRiskRatio}R, ${tradePlan.riskPlan?.confluenceCount} confluence signals, ${tradePlan.riskPlan?.session} session.`,
+    riskWarning: "Automatic MT4 execution is still gated by account limits, kill switches, stop loss, take profit, minimum 2.5R, and EA local auto permission.",
+    invalidationCondition: direction === "BUY"
+      ? `Setup is invalid if price trades through ${tradePlan.riskPlan?.stopLoss}.`
+      : `Setup is invalid if price trades through ${tradePlan.riskPlan?.stopLoss}.`,
+    timeframe
+  };
+}
+
+function applyMt4RiskApprovedFallback(signal, fallback, tradePlan) {
+  if (tradePlan.blocked || fallback.decision === "NO_TRADE") return signal;
+  const aiProducedExecutableTrade =
+    signal.decision === fallback.decision &&
+    Number(signal.confidence || 0) >= 75 &&
+    Number(signal.rewardToRiskRatio || 0) >= 2.5 &&
+    Number(signal.stopLoss || 0) > 0 &&
+    Number(signal.takeProfit || 0) > 0;
+
+  if (aiProducedExecutableTrade) return signal;
+
+  return {
+    ...signal,
+    ...fallback,
+    reason: `${fallback.reason} AI commentary was not executable, so Aldric used the deterministic MT4 risk plan for the trade candidate.`,
+    shouldExecute: false
+  };
+}
+
 export async function postMarketData(req, res, next) {
   try {
     if (!req.body?.symbol) throw badRequest("symbol is required.");
@@ -163,17 +208,7 @@ export async function getMt4Signal(req, res, next) {
     marketData.newsEvents = [...(marketData.newsEvents || []), ...fundamentalEvents];
     const newsRisk = await checkHighImpactEventRisk({ symbol });
     const tradePlan = buildMt4TradePlan({ marketData, account });
-    const fallback = {
-      symbol,
-      entryPrice: tradePlan.riskPlan?.entryPrice || Number(marketData.ask || marketData.bid || 0),
-      stopLoss: tradePlan.riskPlan?.stopLoss || 0,
-      takeProfit: tradePlan.riskPlan?.takeProfit || 0,
-      riskAmount: tradePlan.riskPlan?.riskAmount || 0,
-      rewardToRiskRatio: tradePlan.riskPlan?.rewardToRiskRatio || 0,
-      marketCondition: tradePlan.blocked ? tradePlan.blockReason : tradePlan.technicalData?.marketCondition,
-      reason: tradePlan.blocked ? tradePlan.blockReason : "MT4-ready setup passed deterministic risk filters.",
-      timeframe
-    };
+    const fallback = buildMt4FallbackSignal({ symbol, timeframe, tradePlan, marketData });
 
     const aiPayload = {
       source: "MT4",
@@ -192,7 +227,8 @@ export async function getMt4Signal(req, res, next) {
     };
 
     const aiSignal = await generateAiSignal(aiPayload);
-    const signal = validateSignal(aiSignal, fallback);
+    let signal = validateSignal(aiSignal, fallback);
+    signal = applyMt4RiskApprovedFallback(signal, fallback, tradePlan);
 
     if (tradePlan.blocked) {
       signal.decision = "NO_TRADE";
@@ -249,17 +285,7 @@ async function generateSignalFromMt4Data({ accountId, account, marketData }) {
   marketData.newsEvents = [...(marketData.newsEvents || []), ...fundamentalEvents];
   const newsRisk = await checkHighImpactEventRisk({ symbol });
   const tradePlan = buildMt4TradePlan({ marketData, account });
-  const fallback = {
-    symbol,
-    entryPrice: tradePlan.riskPlan?.entryPrice || Number(marketData.ask || marketData.bid || 0),
-    stopLoss: tradePlan.riskPlan?.stopLoss || 0,
-    takeProfit: tradePlan.riskPlan?.takeProfit || 0,
-    riskAmount: tradePlan.riskPlan?.riskAmount || 0,
-    rewardToRiskRatio: tradePlan.riskPlan?.rewardToRiskRatio || 0,
-    marketCondition: tradePlan.blocked ? tradePlan.blockReason : tradePlan.technicalData?.marketCondition,
-    reason: tradePlan.blocked ? tradePlan.blockReason : "MT4-ready setup passed deterministic risk filters.",
-    timeframe
-  };
+  const fallback = buildMt4FallbackSignal({ symbol, timeframe, tradePlan, marketData });
 
   const aiPayload = {
     source: "MT4_AUTO_SCAN",
@@ -278,7 +304,8 @@ async function generateSignalFromMt4Data({ accountId, account, marketData }) {
   };
 
   const aiSignal = await generateAiSignal(aiPayload);
-  const signal = validateSignal(aiSignal, fallback);
+  let signal = validateSignal(aiSignal, fallback);
+  signal = applyMt4RiskApprovedFallback(signal, fallback, tradePlan);
 
   if (tradePlan.blocked) {
     signal.decision = "NO_TRADE";
