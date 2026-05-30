@@ -17,9 +17,9 @@ export default function FundamentalsPanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  async function loadEvents() {
+  async function loadEvents({ preserveMessage = false } = {}) {
     setLoading(true);
-    setMessage("");
+    if (!preserveMessage) setMessage("");
     try {
       const data = await fetchFundamentalEvents();
       setEvents(data.events || []);
@@ -37,11 +37,12 @@ export default function FundamentalsPanel() {
     try {
       await addFundamentalEvent({
         ...form,
+        time: new Date(form.time).toISOString(),
         currencies: [form.currency]
       });
       setForm(defaultForm);
+      await loadEvents({ preserveMessage: true });
       setMessage("Fundamental event added. High-impact matching events will block trades near release time.");
-      await loadEvents();
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to add event.");
     } finally {
@@ -54,8 +55,8 @@ export default function FundamentalsPanel() {
     setMessage("");
     try {
       const data = await syncFundamentalEvents();
+      await loadEvents({ preserveMessage: true });
       setMessage(`Synced ${data.count} provider events.`);
-      await loadEvents();
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to sync provider. Add an FMP, Finnhub, or Trading Economics key, or use manual events.");
     } finally {

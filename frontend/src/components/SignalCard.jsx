@@ -7,11 +7,21 @@ function badgeClass(decision) {
 }
 
 function money(value) {
+  if (value === undefined || value === null) return "N/A";
   return Number(value || 0).toLocaleString(undefined, {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 2
   });
+}
+
+function price(value, symbol = "") {
+  if (value === undefined || value === null) return "N/A";
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "N/A";
+  const cleanSymbol = String(symbol).toUpperCase();
+  const maximumFractionDigits = cleanSymbol.includes("JPY") ? 3 : cleanSymbol.includes("USD") && !cleanSymbol.includes("BTC") && !cleanSymbol.includes("XAU") ? 5 : 2;
+  return parsed.toLocaleString(undefined, { maximumFractionDigits });
 }
 
 export default function SignalCard({ signal }) {
@@ -53,9 +63,9 @@ export default function SignalCard({ signal }) {
 
       <div className="grid grid-cols-2 gap-px bg-slate-800 lg:grid-cols-5">
         {[
-          ["Entry", money(signal.entryPrice), "text-slate-100"],
-          ["Stop Loss", money(signal.stopLoss), "text-rose-200"],
-          ["Take Profit", money(signal.takeProfit), "text-emerald-200"],
+          ["Entry", price(signal.entryPrice, signal.symbol), "text-slate-100"],
+          ["Stop Loss", price(signal.stopLoss, signal.symbol), "text-rose-200"],
+          ["Take Profit", price(signal.takeProfit, signal.symbol), "text-emerald-200"],
           ["Risk Amount", money(signal.riskAmount), "text-slate-100"],
           ["R:R", `${Number(signal.rewardToRiskRatio || 0).toFixed(2)}:1`, "text-cyan-100"]
         ].map(([label, value, valueClass]) => (

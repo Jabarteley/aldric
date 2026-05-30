@@ -57,7 +57,7 @@ export default function RiskSettings({ value, onChange, timeframe, onTimeframeCh
       <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-400/15 bg-emerald-400/10 p-3 text-xs leading-5 text-emerald-100">
         <LockKeyhole size={15} className="mt-0.5 shrink-0" />
         <span>
-          Backend caps risk at 2%, requires stop loss and take profit, rejects weak reward-to-risk, and never enables automatic execution.
+          Backend caps dashboard risk at 2%, requires stop loss and take profit, and rejects weak reward-to-risk. MT4 automatic execution uses the separate global, account, EA, and kill-switch gates.
         </span>
       </div>
     </section>

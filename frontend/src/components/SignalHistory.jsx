@@ -7,6 +7,7 @@ function badgeClass(decision) {
 }
 
 function money(value) {
+  if (value === undefined || value === null) return "N/A";
   return Number(value || 0).toLocaleString(undefined, {
     style: "currency",
     currency: "USD",
@@ -14,8 +15,20 @@ function money(value) {
   });
 }
 
+function price(value, symbol = "") {
+  if (value === undefined || value === null) return "N/A";
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "N/A";
+  const cleanSymbol = String(symbol).toUpperCase();
+  const maximumFractionDigits = cleanSymbol.includes("JPY") ? 3 : cleanSymbol.includes("USD") && !cleanSymbol.includes("BTC") && !cleanSymbol.includes("XAU") ? 5 : 2;
+  return parsed.toLocaleString(undefined, { maximumFractionDigits });
+}
+
 function formatDate(value) {
   const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    return { date: "Unknown date", time: "" };
+  }
   return {
     date: date.toLocaleDateString(),
     time: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
@@ -103,9 +116,9 @@ export default function SignalHistory({ signals }) {
               </div>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                <Metric label="Entry" value={money(signal.entryPrice)} />
-                <Metric label="Stop Loss" value={money(signal.stopLoss)} valueClass="text-rose-200" />
-                <Metric label="Take Profit" value={money(signal.takeProfit)} valueClass="text-emerald-200" />
+                <Metric label="Entry" value={price(signal.entryPrice, signal.symbol)} />
+                <Metric label="Stop Loss" value={price(signal.stopLoss, signal.symbol)} valueClass="text-rose-200" />
+                <Metric label="Take Profit" value={price(signal.takeProfit, signal.symbol)} valueClass="text-emerald-200" />
                 <Metric label="Risk / Reward" value={`${Number(signal.rewardToRiskRatio || 0).toFixed(2)}:1`} valueClass="text-cyan-100" />
                 <Metric label="Risk Amount" value={money(signal.riskAmount)} />
               </div>
